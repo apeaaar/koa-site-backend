@@ -16,7 +16,6 @@ class PostModel {
    */
   async select (where, desc, limit, offset, field) {
     let query = await Post.find(where)
-
     if (field) {
       let selectd = ''
       let lastel = await _.last(field)
@@ -38,16 +37,7 @@ class PostModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    return new Promise((resolve, reject) => {
-      query
-        .exec()
-        .then(data => {
-          resolve(data)
-        })
-        .catch(err => {
-          reject(err)
-        })
-    })
+    return await query
   }
 
   /**
@@ -82,16 +72,7 @@ class PostModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    return new Promise((resolve, reject) => {
-      query
-        .exec()
-        .then(data => {
-          resolve(data)
-        })
-        .catch(err => {
-          reject(err)
-        })
-    })
+    return await query.countDocuments()
   }
   /**
    *
@@ -100,16 +81,7 @@ class PostModel {
    */
   async add (data) {
     let post = new Post(data)
-    return new Promise((resolve, reject) => {
-      post
-        .save()
-        .then(data => {
-          resolve(data)
-        })
-        .catch(err => {
-          reject(err)
-        })
-    })
+    return await post.save()
   }
   /**
    *
@@ -131,8 +103,7 @@ class PostModel {
     post.image = PostObject.image
     post.is_recommend = PostObject.is_recommend
 
-    const data = await post.save()
-    return data
+    return await post.save()
   }
 
   /**
@@ -140,14 +111,7 @@ class PostModel {
    * @param where 条件查找，例如{pid:xxx}
    */
   async delete (where) {
-    await Post.findOneAndDelete(where)
-      .exec()
-      .then(deletedpost => {
-        return deletedpost
-      })
-      .catch(err => {
-        throw err
-      })
+    return await Post.findOneAndDelete(where).exec()
   }
 }
 
@@ -188,14 +152,7 @@ class RePostModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return query.exec()
   }
 
   /**
@@ -208,7 +165,7 @@ class RePostModel {
    * @returns 查询的结果的数量
    */
   async count (where, desc, limit, offset, field) {
-    let query = await RecommendPost.countDocuments(where).exec()
+    let query = await RecommendPost.countDocuments(where)
     if (field) {
       let selectd = ''
       let lastel = await _.last(field)
@@ -230,14 +187,7 @@ class RePostModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return await query.exec()
   }
   /**
    *
@@ -246,14 +196,7 @@ class RePostModel {
    */
   async add (data) {
     let post = await new RecommendPost(data)
-    post
-      .save()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return await post.save()
   }
   /**
    *
@@ -273,17 +216,7 @@ class RePostModel {
         post.category = await PostObject.category
         post.image = await PostObject.image
         post.is_recommend = await PostObject.is_recommend
-        post
-          .exec()
-          .then(data => {
-            return data
-          })
-          .catch(err => {
-            throw err
-          })
-      })
-      .catch(err => {
-        throw err
+        return await post.save()
       })
   }
 
@@ -292,14 +225,7 @@ class RePostModel {
    * @param where 条件查找，例如{pid:xxx}
    */
   async delete (where) {
-    await RecommendPost.findOneAndDelete(where)
-      .exec()
-      .then(deletedpost => {
-        return deletedpost
-      })
-      .catch(err => {
-        throw err
-      })
+    return await RecommendPost.findOneAndDelete(where).exec()
   }
 }
 
@@ -340,14 +266,7 @@ class CategoryModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return query.exec()
   }
 
   /**
@@ -382,14 +301,7 @@ class CategoryModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return query.exec()
   }
 
   /**
@@ -399,14 +311,7 @@ class CategoryModel {
    */
   async add (data) {
     let category = await new Category(data)
-    category
-      .save()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return await category.save()
   }
 
   /**
@@ -420,17 +325,7 @@ class CategoryModel {
       .then(async category => {
         category.id = await CategoryObject.pid
         category.title = await CategoryObject.title
-        category
-          .save()
-          .then(data => {
-            return data
-          })
-          .catch(err => {
-            throw err
-          })
-      })
-      .catch(err => {
-        throw err
+        return await category.save()
       })
   }
 
@@ -439,14 +334,7 @@ class CategoryModel {
    * @param where 条件查找，例如{pid:xxx}
    */
   async delete (where) {
-    await Category.findOneAndDelete(where)
-      .exec()
-      .then(deletedcategory => {
-        return deletedcategory
-      })
-      .catch(err => {
-        throw err
-      })
+    return await Category.findOneAndDelete(where).exec()
   }
 }
 
@@ -487,14 +375,7 @@ class TagModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return query.exec()
   }
 
   /**
@@ -529,14 +410,7 @@ class TagModel {
     if (offset) {
       query = await query.skip(offset)
     }
-    query
-      .exec()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return query.exec()
   }
 
   /**
@@ -546,14 +420,7 @@ class TagModel {
    */
   async add (data) {
     let tag = await new Tag(data)
-    tag
-      .save()
-      .then(data => {
-        return data
-      })
-      .catch(err => {
-        throw err
-      })
+    return await tag.save()
   }
 
   /**
@@ -567,17 +434,7 @@ class TagModel {
       .then(async tag => {
         tag.id = await TagObject.pid
         tag.title = await TagObject.title
-        tag
-          .save()
-          .then(data => {
-            return data
-          })
-          .catch(err => {
-            throw err
-          })
-      })
-      .catch(err => {
-        throw err
+        return await tag.save()
       })
   }
 
@@ -586,14 +443,7 @@ class TagModel {
    * @param where 条件查找，例如{pid:xxx}
    */
   async delete (where) {
-    await Tag.findOneAndDelete(where)
-      .exec()
-      .then(deletedtag => {
-        return deletedtag
-      })
-      .catch(err => {
-        throw err
-      })
+    return await Tag.findOneAndDelete(where).exec()
   }
 }
 

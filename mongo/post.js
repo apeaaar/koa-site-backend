@@ -5,11 +5,14 @@ const { PAGE_SIZE } = require('../common/tool')
 const _ = require('lodash')
 
 let PostModel
+let RePostModel
 if (config.DATA_SOURCE == 'leancloud') {
   PostModel = require('../db/leancloud').PostModel
+  RePostModel = require('../db/leancloud').RePostModel
 }
 if (config.DATA_SOURCE == 'mongodb') {
   PostModel = require('../db/mongo').PostModel
+  RePostModel = require('../db/mongo').RePostModel
 }
 
 /**
@@ -31,7 +34,7 @@ const createPost = async NewPost => {
   }
   let repost
   if (PostObject.is_recommend) {
-    repost = await new PostModel.add(PostObject)
+    repost = await createRePost(PostObject)
   }
   let newPost = await new PostModel()
   newPost
@@ -52,9 +55,9 @@ const createPost = async NewPost => {
  **/
 const createRePost = async NewPost => {
   let PostObject = await _.omit(NewPost, ['content', 'is_recommend'])
-  let newRePost = new RecommendPost(PostObject)
+  let newRePost = RePostModel()
   newRePost
-    .save()
+    .add(PostObject)
     .then(result => {
       dbCode(1011, result)
       return { code: 1011, meaasge: result }
@@ -70,32 +73,14 @@ const createRePost = async NewPost => {
  * @returns 修改后的文档
  * **/
 const editPost = async PostObject => {
-  if (PostObject.is_recommend) {
-    createRePost(PostObject)
+  let lastPostObject = findPost(PostObject.pid)
+  if (lastPostObject.is_recommend == false && PostObject.is_recommend == true) {
+    await createRePost(PostObject)
   }
-  if (!PostObject.is_recommend) {
-    await RecommendPost.findOneAndDelete({ pid: PostObject.pid })
-      .exec()
-      .then(deleteRePost => {
-        return { status: [{ code: 1012, message: deleteRePost }] }
-      })
-      .catch(err => {
-        return { status: [{ code: 1005, error: err }] }
-      })
+  if (lastPostObject.is_recommend == true && PostObject.is_recommend == false) {
+    await deleteRePost(PostObject.pid)
   }
-  await Post.findOne({ pid: PostObject.pid })
-    .exec()
-    .then(post => {
-      post.title = PostObject.title
-      post.update_time = Date.now()
-      post.desc = PostObject.desc
-      post.content = PostObject.content
-      post.tag = PostObject.tag
-      post.category = PostObject.category
-      post.image = PostObject.image
-      post.is_recommend = PostObject.is_recommend
-      return post.save()
-    })
+  await PostModel.update(PostObject, { pid: PostObject.pid })
     .then(updatedPost => {
       if (!updatedPost) {
         dbCode(1015, 'updatepost')
@@ -117,10 +102,9 @@ const editPost = async PostObject => {
  * **/
 const deletePost = async pid => {
   if (isPostRecommend(pid)) {
-    RecommendPost.findOneAndDelete({ pid: pid })
+    deleteRePost(pid)
   }
-  await Post.findOneAndDelete({ pid: pid })
-    .exec()
+  await PostModel.delete({ pid: pid })
     .then(deletedUser => {
       if (deletedUser) {
         dbCode(1010)
@@ -137,16 +121,29 @@ const deletePost = async pid => {
 }
 
 /**
+ * @param pid
+ * @return 删除的推荐文章
+ */
+const deleteRePost = async pid => {
+  await RePostModel.delete({ pid: pid })
+    .then(data => {
+      return data
+    })
+    .catch(err => {
+      dbCode(1026, err)
+      return { status: [{ code: 1026, error: err }] }
+    })
+}
+
+/**
  *
  * @param pid
  * @returns 找到的文章
  */
 const findPost = async pid => {
-  await Post.findOne({ pid: pid })
-    .exec()
+  await PostModel.select({ pid: pid })
     .then(post => {
-      post.status = [{ code: 1021 }]
-      return post
+      return { data: post, status: [{ code: 1021 }] }
     })
     .catch(err => {
       dbCode(1016, err)
@@ -160,12 +157,19 @@ const findPost = async pid => {
  * @returns 找到的文章基本信息
  */
 const findPostCard = async pid => {
-  await Post.findOne({ pid: pid })
-    .exec()
+  await PostModel.select({ pid: pid }, undefined, undefined, undefined, [
+    'title',
+    'pid',
+    'create_time',
+    'update_time',
+    'tag',
+    'category',
+    'image',
+    'desc',
+    'is_recommend'
+  ])
     .then(post => {
-      post = _.omit(post, ['content'])
-      post.status = [{ code: 1013 }]
-      return post
+      return { data: post, status: [{ code: 1013 }] }
     })
     .catch(err => {
       dbCode(1006, err)
@@ -179,11 +183,12 @@ const findPostCard = async pid => {
  * @returns 找到的文章内容
  */
 const findPostContent = async pid => {
-  await Post.findOne({ pid: pid })
+  await PostModel.select({ pid: pid }, undefined, undefined, undefined, [
+    'content'
+  ])
     .exec()
     .then(post => {
-      let content = { content: post.content, status: [{ code: 1014 }] }
-      return content
+      return { data: post[0].content, status: [{ code: 1014 }] }
     })
     .catch(err => {
       dbCode(1007, err)
@@ -195,7 +200,7 @@ const findPostContent = async pid => {
  * @returns 推荐文章的列表
  */
 const findRePostList = async () => {
-  await Post.find({})
+  await PostModel.select({})
     .exec()
     .then(rePostList => {
       rePostList.status = [{ code: 1022 }]
@@ -211,7 +216,7 @@ const findRePostList = async () => {
  * @returns 文章总数
  */
 const getPostCount = async () => {
-  await Post.countDocuments({})
+  await PostModel.count({})
     .then(postCount => {
       return { data: postCount, status: [{ code: 1024 }] }
     })
@@ -238,11 +243,11 @@ const getPages = async () => {
  */
 const findPostList = async targetPage => {
   let skipCount = (targetPage - 1) * PAGE_SIZE
-  await Post.find({})
-    .sort({ create_time: -1 }) // 按时间倒序排序
-    .skip(skipCount)
-    .limit(PAGE_SIZE)
-    .exec()
+  await Post.select({}, { create_time: -1 }, PAGE_SIZE, skipCount)
+    // .sort({ create_time: -1 }) // 按时间倒序排序
+    // .skip(skipCount)
+    // .limit(PAGE_SIZE)
+    // .exec()
     .then(articles => {
       return {
         data: {
@@ -262,7 +267,13 @@ const findPostList = async targetPage => {
  * @returns true重复，false不重复
  */
 const isPidDuplicate = async pid => {
-  if (Post.findOne({ pid })) {
+  if (
+    (() => {
+      Post.select({ pid }).then(data => {
+        return isDataAru(data)
+      })
+    })()
+  ) {
     return true
   } else {
     return false
@@ -282,6 +293,13 @@ const isPostRecommend = pid => {
   } else {
     return false
   }
+}
+
+const isDataAru = data => {
+  if (!data[0]) {
+    return false
+  }
+  return true
 }
 
 exports.createPost = createPost

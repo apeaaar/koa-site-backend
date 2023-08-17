@@ -2,7 +2,7 @@ const AV = require('leancloud-storage')
 const config = require('../config.json')
 const _ = require('lodash')
 
-if (config.leancloud.masterKey) {
+if (config.leancloud.masterKey && _.isNumber(config.leancloud.masterKey)) {
   AV.init({
     appId: config.leancloud.appId,
     appKey: config.leancloud.appKey,
